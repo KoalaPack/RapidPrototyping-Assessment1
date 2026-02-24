@@ -9,81 +9,88 @@ namespace StealthGame
     {
         public InputAction MoveAction;
         public InputAction JumpAction;
+        public InputAction SprintAction;
 
-        public float walkSpeed = 1.0f;
+        public float walkSpeed = 2.0f;
+        public float sprintSpeed = 5.0f;
         public float turnSpeed = 20f;
-        public float jumpHeight = 5f;
 
         Animator m_Animator;
         Rigidbody m_Rigidbody;
         AudioSource m_AudioSource;
         Vector3 m_Movement;
         Quaternion m_Rotation = Quaternion.identity;
-    
-        // DEMO
-        private List<string> m_OwnedKeys = new();
 
-        void Start ()
+        void Start()
         {
-            m_Animator = GetComponent<Animator> ();
-            m_Rigidbody = GetComponent<Rigidbody> ();
-            m_AudioSource = GetComponent<AudioSource> ();
-        
+            m_Animator = GetComponent<Animator>();
+            m_Rigidbody = GetComponent<Rigidbody>();
+            m_AudioSource = GetComponent<AudioSource>();
+
             MoveAction.Enable();
             JumpAction.Enable();
+            SprintAction.Enable();
         }
-
-        private void Update()
-        {
-            if (JumpAction.WasPressedThisFrame())
-                print("Jump");
-
-        }
-
-        void FixedUpdate ()
-        {
-
-
-            var pos = MoveAction.ReadValue<Vector2>();
-        
-            float horizontal = pos.x;
-            float vertical = pos.y;
-        
-            m_Movement.Set(horizontal, 0f, vertical);
-            m_Movement.Normalize ();
-
-            bool hasHorizontalInput = !Mathf.Approximately (horizontal, 0f);
-            bool hasVerticalInput = !Mathf.Approximately (vertical, 0f);
-            bool isWalking = hasHorizontalInput || hasVerticalInput;
-            m_Animator.SetBool ("IsWalking", isWalking);
-        
-            if (isWalking)
-            {
-                if (!m_AudioSource.isPlaying)
-                {
-                    m_AudioSource.Play();
-                }
-            }
-            else
-            {
-                m_AudioSource.Stop ();
-            }
-
-            Vector3 desiredForward = Vector3.RotateTowards (transform.forward, m_Movement, turnSpeed * Time.deltaTime, 0f);
-            m_Rotation = Quaternion.LookRotation (desiredForward);
-        
-            m_Rigidbody.MoveRotation (m_Rotation);
-            m_Rigidbody.MovePosition (m_Rigidbody.position + m_Movement * walkSpeed * Time.deltaTime);
-        }
+        private List<string> m_OwnedKeys = new();
 
         public void AddKey(string keyName)
         {
             m_OwnedKeys.Add(keyName);
+            Debug.Log($"Picked up key: {keyName}");
         }
 
         public bool OwnKey(string keyName)
         {
             return m_OwnedKeys.Contains(keyName);
+        }
+        void FixedUpdate()
+        {
+            Vector2 moveInput = MoveAction.ReadValue<Vector2>();
+
+            float horizontal = moveInput.x;
+            float vertical = moveInput.y;
+
+            m_Movement.Set(horizontal, 0f, vertical);
+            m_Movement.Normalize();
+
+            bool isMoving = m_Movement.sqrMagnitude > 0.01f;
+
+            // Read sprint as a float so we can see what's actually happening
+            float sprintValue = SprintAction.ReadValue<float>();
+
+            bool sprintHeld = sprintValue > 0.5f;   // manual threshold
+            bool isSprinting = sprintHeld && isMoving;
+
+            float currentSpeed = isSprinting ? sprintSpeed : walkSpeed;
+
+            Debug.Log($"Move: {moveInput} | SprintValue: {sprintValue} | SprintHeld: {sprintHeld} | Speed: {currentSpeed}");
+
+            // Walk animation only
+            m_Animator.SetBool("IsWalking", isMoving);
+
+            if (isMoving)
+            {
+                if (!m_AudioSource.isPlaying)
+                    m_AudioSource.Play();
+            }
+            else
+            {
+                m_AudioSource.Stop();
+            }
+
+            Vector3 desiredForward = Vector3.RotateTowards(
+                transform.forward,
+                m_Movement,
+                turnSpeed * Time.deltaTime,
+                0f
+            );
+
+            m_Rotation = Quaternion.LookRotation(desiredForward);
+
+            m_Rigidbody.MoveRotation(m_Rotation);
+            m_Rigidbody.MovePosition(
+                m_Rigidbody.position + m_Movement * currentSpeed * Time.deltaTime
+            );
         }
     }
 }
