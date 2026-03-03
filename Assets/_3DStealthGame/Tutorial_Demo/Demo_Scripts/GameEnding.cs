@@ -1,4 +1,5 @@
 ﻿using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
 using UnityEngine.UIElements;
 
@@ -26,6 +27,8 @@ namespace StealthGame
         private bool m_Demo_GameTimerIsTicking;
         private Label m_Demo_GameTimerLabel;
 
+        public InputAction ExitButton;
+
         void Start()
         {
             m_EndScreen = uiDocument.rootVisualElement.Q<VisualElement>("EndScreen");
@@ -52,6 +55,10 @@ namespace StealthGame
 
         void Update ()
         {
+            if (ExitButton.IsPressed())
+            {
+                Application.Quit();
+            }
             if (m_Demo_GameTimerIsTicking)
             {
                 m_Demo_GameTimer += Time.deltaTime;
