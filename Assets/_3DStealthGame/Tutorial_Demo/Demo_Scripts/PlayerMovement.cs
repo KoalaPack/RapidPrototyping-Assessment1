@@ -12,8 +12,8 @@ namespace StealthGame
         public InputAction SprintAction;
 
         public float walkSpeed = 2.0f;
-        public float sprintSpeed = 5.0f;
-        public float turnSpeed = 20f;
+        public float sprintSpeed = 3.0f;
+        public float turnSpeed = 80f;
 
         Animator m_Animator;
         Rigidbody m_Rigidbody;
@@ -47,27 +47,33 @@ namespace StealthGame
         {
             Vector2 moveInput = MoveAction.ReadValue<Vector2>();
 
-            float horizontal = moveInput.x;
-            float vertical = moveInput.y;
+            float turnInput = moveInput.x;     // A / D
+            float moveInputY = moveInput.y;    // W / S
 
-            m_Movement.Set(horizontal, 0f, vertical);
-            m_Movement.Normalize();
-
-            bool isMoving = m_Movement.sqrMagnitude > 0.01f;
-
-            // Read sprint as a float so we can see what's actually happening
+            // Sprint logic
             float sprintValue = SprintAction.ReadValue<float>();
-
-            bool sprintHeld = sprintValue > 0.5f;   // manual threshold
+            bool sprintHeld = sprintValue > 0.5f;
+            bool isMoving = Mathf.Abs(moveInputY) > 0.01f;
             bool isSprinting = sprintHeld && isMoving;
 
             float currentSpeed = isSprinting ? sprintSpeed : walkSpeed;
 
-            Debug.Log($"Move: {moveInput} | SprintValue: {sprintValue} | SprintHeld: {sprintHeld} | Speed: {currentSpeed}");
+            // --- ROTATION (A/D) ---
+            if (Mathf.Abs(turnInput) > 0.01f)
+            {
+                float turnAmount = turnInput * turnSpeed * Time.deltaTime;
+                Quaternion turnRotation = Quaternion.Euler(0f, turnAmount, 0f);
+                m_Rigidbody.MoveRotation(m_Rigidbody.rotation * turnRotation);
+            }
 
-            // Walk animation only
+            // --- MOVEMENT (W/S) ---
+            Vector3 forwardMove = transform.forward * moveInputY * currentSpeed * Time.deltaTime;
+            m_Rigidbody.MovePosition(m_Rigidbody.position + forwardMove);
+
+            // --- ANIMATION ---
             m_Animator.SetBool("IsWalking", isMoving);
 
+            // --- AUDIO ---
             if (isMoving)
             {
                 if (!m_AudioSource.isPlaying)
@@ -77,20 +83,6 @@ namespace StealthGame
             {
                 m_AudioSource.Stop();
             }
-
-            Vector3 desiredForward = Vector3.RotateTowards(
-                transform.forward,
-                m_Movement,
-                turnSpeed * Time.deltaTime,
-                0f
-            );
-
-            m_Rotation = Quaternion.LookRotation(desiredForward);
-
-            m_Rigidbody.MoveRotation(m_Rotation);
-            m_Rigidbody.MovePosition(
-                m_Rigidbody.position + m_Movement * currentSpeed * Time.deltaTime
-            );
         }
     }
 }
